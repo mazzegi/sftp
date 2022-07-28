@@ -166,7 +166,7 @@ func (a *Attributes) UnmarshalFrom(b *Buffer) (err error) {
 }
 
 // XXX_UnmarshalByFlags uses the pre-existing a.Flags field to determine which fields to decode.
-// DO NOT USE THIS: it is an anti-corruption function to implement existing internal usage in pkg/sftp.
+// DO NOT USE THIS: it is an anti-corruption function to implement existing internal usage in mazzegi/sftp.
 // This function is not a part of any compatibility promise.
 func (a *Attributes) XXX_UnmarshalByFlags(flags uint32, b *Buffer) (err error) {
 	a.Flags = flags
