@@ -374,6 +374,61 @@ func (c *Client) ReadDir(p string) ([]os.FileInfo, error) {
 	return attrs, err
 }
 
+// ReadDirFnc reads the directory named by dirname and returns a list of
+// directory entries.
+func (c *Client) ReadDirFnc(p string, fnc func(attr *FileStat, fileName string)) error {
+	handle, err := c.opendir(p)
+	if err != nil {
+		return err
+	}
+	defer c.close(handle) // this has to defer earlier than the lock below
+	//var attrs []os.FileInfo
+	var done = false
+	for !done {
+		id := c.nextID()
+		typ, data, err1 := c.sendPacket(nil, &sshFxpReaddirPacket{
+			ID:     id,
+			Handle: handle,
+		})
+		if err1 != nil {
+			err = err1
+			done = true
+			break
+		}
+		switch typ {
+		case sshFxpName:
+			sid, data := unmarshalUint32(data)
+			if sid != id {
+				return &unexpectedIDErr{id, sid}
+			}
+			count, data := unmarshalUint32(data)
+			for i := uint32(0); i < count; i++ {
+				var filename string
+				filename, data = unmarshalString(data)
+				_, data = unmarshalString(data) // discard longname
+				var attr *FileStat
+				attr, data = unmarshalAttrs(data)
+				if filename == "." || filename == ".." {
+					continue
+				}
+
+				//attrs = append(attrs, fileInfoFromStat(attr, path.Base(filename)))
+				fnc(attr, path.Base(filename))
+			}
+		case sshFxpStatus:
+			// TODO(dfc) scope warning!
+			err = normaliseError(unmarshalStatus(id, data))
+			done = true
+		default:
+			return unimplementedPacketErr(typ)
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return err
+}
+
 func (c *Client) opendir(path string) (string, error) {
 	id := c.nextID()
 	typ, data, err := c.sendPacket(nil, &sshFxpOpendirPacket{
