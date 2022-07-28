@@ -376,7 +376,7 @@ func (c *Client) ReadDir(p string) ([]os.FileInfo, error) {
 
 // ReadDirFnc reads the directory named by dirname and returns a list of
 // directory entries.
-func (c *Client) ReadDirFnc(p string, fnc func(attr *FileStat, fileName string)) error {
+func (c *Client) ReadDirFnc(p string, fnc func(attr *FileStat, fileName string) (cont bool)) error {
 	handle, err := c.opendir(p)
 	if err != nil {
 		return err
@@ -413,7 +413,10 @@ func (c *Client) ReadDirFnc(p string, fnc func(attr *FileStat, fileName string))
 				}
 
 				//attrs = append(attrs, fileInfoFromStat(attr, path.Base(filename)))
-				fnc(attr, path.Base(filename))
+				cont := fnc(attr, path.Base(filename))
+				if !cont {
+					return nil
+				}
 			}
 		case sshFxpStatus:
 			// TODO(dfc) scope warning!
